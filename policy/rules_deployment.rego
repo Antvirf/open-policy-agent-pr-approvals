@@ -10,7 +10,7 @@ name := input.metadata.name
 # Ensure that deployment has an 'owner' label
 violation[{"msg": msg, "details": {}}] {
 	kubernetes.is_deployment
-	not input.spec.template.metadata.labels.owner
+	not input.metadata.labels.owner
 	msg := sprintf(
 		"Deployment %v does not have an 'owner' label",
 		[name],
