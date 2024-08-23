@@ -1,5 +1,8 @@
 # Open Policy Agent-based PR Approvals
 
+- [Example PR #1: Invalid YAML](https://github.com/Antvirf/open-policy-agent-pr-approvals/pull/1)
+- [Example PR #2: Valid YAML - approved](https://github.com/Antvirf/open-policy-agent-pr-approvals/pull/2)
+
 See the GitHub Actions workflow file [here](/.github/workflows/opa-pr-auto-approval.yaml). What this workflow does:
 
 1. On PR, figure out which files were added or changed
