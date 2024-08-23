@@ -1,0 +1,65 @@
+name: Auto-approve PR if OPA rules pass
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  opa_rules_check:
+    runs-on: ubuntu-latest
+    outputs:
+      opa_result: ${{ steps.opa-test.outputs.OPA_RESULT }}
+    steps:
+      - name: Check out repository at pull request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Assemble list of added/changed YAML files
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const newFiles = files.filter(file => file.status !== 'removed' && (file.filename.endsWith('.yml') || file.filename.endsWith('.yaml'))).map(file => file.filename);
+            console.log('New files:', newFiles);
+            const fileNames = newFiles.join('\n');
+            require('fs').writeFileSync('pr_files.txt', fileNames);
+            return newFiles;
+
+      - name: Check files against Open Policy Agent rules using conftest
+        shell: bash
+        id: opa-test
+        run: |
+          cat pr_files.txt
+          cat pr_files.txt | xargs docker run --rm -v $(pwd):/project openpolicyagent/conftest test --no-fail --no-color > opa_rules_result.txt
+          cat opa_rules_result.txt
+          echo "## Open Policy Agent analysis result" > opa_result_for_pr.md
+          if grep -q 'FAIL' opa_rules_result.txt; then
+            echo "OPA_RESULT=false" >> $GITHUB_OUTPUT
+          else
+            echo "OPA_RESULT=true" >> $GITHUB_OUTPUT
+          fi
+          echo "\`\`\`" >> opa_result_for_pr.md
+          cat opa_rules_result.txt >> opa_result_for_pr.md
+          echo "\`\`\`" >> opa_result_for_pr.md
+
+      - name: Add result to PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          message-path: opa_result_for_pr.md
+          repo-token: ${{ github.token }}
+
+  approve_pull_request:
+    needs: [opa_rules_check]
+    if: ${{ needs.opa_rules_check.outputs.opa_result == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve
+        uses: hmarr/auto-approve-action@v4
