@@ -38,6 +38,10 @@ jobs:
         id: opa-test
         run: |
           cat pr_files.txt
+          if [ ! -s files.txt ]; then
+            echo "OPA_RESULT=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           cat pr_files.txt | xargs docker run --rm -v $(pwd):/project openpolicyagent/conftest test --no-fail --no-color > opa_rules_result.txt
           cat opa_rules_result.txt
           echo "## Open Policy Agent analysis result" > opa_result_for_pr.md
